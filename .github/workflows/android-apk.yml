@@ -114,6 +114,21 @@ jobs:
           export EXPO_PUBLIC_WEB_URL=https://multica.ai
           ./gradlew assembleRelease --no-daemon --console=plain
 
+      - name: Verify release bundle
+        # Static checks alone passed on the previous release build while the
+        # app still crashed on a real phone, so fail the job here if the
+        # release bundle is missing, empty, or was bundled without the
+        # production API URL (the import-time throw in data/api.ts).
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          cd /tmp && rm -rf apk-check && mkdir apk-check && cd apk-check
+          unzip -o -q "$OLDPWD/$APK" assets/index.android.bundle assets/app.config
+          test -s assets/index.android.bundle
+          grep -a -q "api.multica.ai" assets/index.android.bundle
+          grep -q '"APP_ENV": "production"' assets/app.config || grep -q "production" assets/app.config
+          ls -l "$OLDPWD/$APK" assets/index.android.bundle
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
