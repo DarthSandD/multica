@@ -84,29 +84,45 @@ export const SHIKI_THEME_DARK = "github-dark";
 let highlighterPromise: Promise<HighlighterCore | null> | null = null;
 
 function initHighlighter(): Promise<HighlighterCore | null> {
-  if (!isNativeEngineAvailable()) {
-    // Native module didn't link — usually means dev client wasn't rebuilt
-    // after install. Fall back silently to plain text so the app still
-    // ships content; the warning is for the developer.
-    console.warn(
-      "[shiki] react-native-shiki-engine native module unavailable — code blocks will render plain. Did you rebuild the dev client?",
-    );
+  try {
+    if (!isNativeEngineAvailable()) {
+      // Native module didn't link — usually means dev client wasn't rebuilt
+      // after install. Fall back silently to plain text so the app still
+      // ships content; the warning is for the developer.
+      console.warn(
+        "[shiki] react-native-shiki-engine native module unavailable — code blocks will render plain. Did you rebuild the dev client?",
+      );
+      return Promise.resolve(null);
+    }
+    return createHighlighterCore({
+      themes: [githubLight, githubDark],
+      langs: LANGS,
+      engine: createNativeEngine(),
+    }).catch((err) => {
+      console.warn("[shiki] highlighter init failed:", err);
+      return null;
+    });
+  } catch (err) {
+    // createNativeEngine() can throw synchronously on a device where the
+    // native engine fails to load. That throw used to escape prewarm at
+    // module scope in app/_layout.tsx and kill app startup before any
+    // screen rendered, even though no code block was on screen. A
+    // highlighter is never worth a startup crash: fall back to plain text.
+    console.warn("[shiki] highlighter init threw synchronously:", err);
     return Promise.resolve(null);
   }
-  return createHighlighterCore({
-    themes: [githubLight, githubDark],
-    langs: LANGS,
-    engine: createNativeEngine(),
-  }).catch((err) => {
-    console.warn("[shiki] highlighter init failed:", err);
-    return null;
-  });
 }
 
 /** Kick off the singleton init. Call once at app boot. Idempotent: repeat
- *  calls reuse the cached promise. */
+ *  calls reuse the cached promise. Never throws: a failed prewarm must not
+ *  take down startup. */
 export function prewarmHighlighter(): void {
-  highlighterPromise ??= initHighlighter();
+  try {
+    highlighterPromise ??= initHighlighter();
+  } catch (err) {
+    console.warn("[shiki] prewarm failed:", err);
+    highlighterPromise = Promise.resolve(null);
+  }
 }
 
 /** Resolve a fence info string ("ts", "JavaScript ", "py") to a known

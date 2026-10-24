@@ -36,9 +36,21 @@ export const useAuthStore = create<AuthState>((set) => ({
     // Restore the persisted workspace slug alongside the auth token so the
     // entry redirect (app/index.tsx) can route directly to the last-used
     // workspace without flashing /select-workspace.
-    await useWorkspaceStore.getState().restoreSlug();
-
-    const token = await getToken();
+    //
+    // SecureStore reads sit OUTSIDE the getMe() try/catch below on purpose
+    // in the original code, but a Keystore failure on a real device
+    // (locked/unavailable Keystore) then rejects initialize() entirely:
+    // isLoading never flips false and startup never reaches a screen.
+    // A storage failure is not an auth failure — fall through to login
+    // instead of hanging or crashing startup.
+    let token: string | null = null;
+    try {
+      await useWorkspaceStore.getState().restoreSlug();
+      token = await getToken();
+    } catch (err) {
+      console.warn("[auth] secure storage read failed, continuing logged out:", err);
+      token = null;
+    }
     if (!token) {
       set({ isLoading: false });
       return;
