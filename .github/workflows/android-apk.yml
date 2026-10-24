@@ -122,12 +122,12 @@ jobs:
         run: |
           APK=android/app/build/outputs/apk/release/app-release.apk
           test -s "$APK"
-          cd /tmp && rm -rf apk-check && mkdir apk-check && cd apk-check
-          unzip -o -q "$OLDPWD/$APK" assets/index.android.bundle assets/app.config
-          test -s assets/index.android.bundle
-          grep -a -q "api.multica.ai" assets/index.android.bundle
-          grep -q '"APP_ENV": "production"' assets/app.config || grep -q "production" assets/app.config
-          ls -l "$OLDPWD/$APK" assets/index.android.bundle
+          rm -rf /tmp/apk-check && mkdir -p /tmp/apk-check
+          unzip -o -q "$APK" assets/index.android.bundle assets/app.config -d /tmp/apk-check
+          test -s /tmp/apk-check/assets/index.android.bundle
+          grep -a -q "api.multica.ai" /tmp/apk-check/assets/index.android.bundle
+          grep -q "production" /tmp/apk-check/assets/app.config
+          ls -l "$APK" /tmp/apk-check/assets/index.android.bundle
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
