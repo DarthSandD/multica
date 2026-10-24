@@ -33,8 +33,14 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # No setup-android step: ubuntu-latest already ships the Android SDK
+      # (ANDROID_HOME set, cmdline-tools + build-tools installed), and
+      # android-actions/setup-android@v3 fails on the removed 'tools'
+      # package (sdkmanager exit 1). Gradle uses the preinstalled SDK.
+      - name: Check Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/build-tools" "$ANDROID_HOME/platforms"
 
       - name: Install dependencies
         working-directory: .
