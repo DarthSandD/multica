@@ -104,6 +104,49 @@ jobs:
           grep -q "production" /tmp/apk-check/assets/app.config
           ls -l "$APK" /tmp/apk-check/assets/index.android.bundle
 
+      # The emulator action runs each script line in a separate shell, so
+      # shell variables do not survive between lines (run 40125108771
+      # failed with an empty APK path for exactly this reason). The test
+      # therefore lives in a real script file, invoked by a single line.
+      - name: Write emulator test script
+        run: |
+          cat > "$GITHUB_WORKSPACE/smoke-test.sh" <<'SMOKE_EOF'
+          #!/bin/sh
+          set +e
+          APK="$GITHUB_WORKSPACE/apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+          adb logcat -c
+          adb install -r "$APK"
+          INSTALL_EXIT=$?
+          echo "install exit: $INSTALL_EXIT"
+          if [ "$INSTALL_EXIT" -ne 0 ]; then
+            echo "INSTALL_FAILED" > "$GITHUB_WORKSPACE/smoke-verdict.txt"
+            adb logcat -b crash -d > "$GITHUB_WORKSPACE/logcat-crash.txt" || true
+            adb logcat -d | grep -E "ai.multica.mobile|FATAL|AndroidRuntime" > "$GITHUB_WORKSPACE/logcat-app.txt" || true
+            exit 1
+          fi
+          adb shell am start -n ai.multica.mobile/.MainActivity
+          sleep 30
+          if adb shell pidof ai.multica.mobile >/dev/null 2>&1; then
+            echo "ALIVE" > "$GITHUB_WORKSPACE/smoke-verdict.txt"
+          else
+            echo "DEAD" > "$GITHUB_WORKSPACE/smoke-verdict.txt"
+          fi
+          adb logcat -b crash -d > "$GITHUB_WORKSPACE/logcat-crash.txt" || true
+          adb logcat -d | grep -E "ai.multica.mobile|FATAL|AndroidRuntime|Displayed" > "$GITHUB_WORKSPACE/logcat-app.txt" || true
+          echo "=== VERDICT ==="
+          cat "$GITHUB_WORKSPACE/smoke-verdict.txt"
+          echo "=== CRASH BUFFER ==="
+          cat "$GITHUB_WORKSPACE/logcat-crash.txt"
+          echo "=== APP LOGCAT MATCHES ==="
+          head -100 "$GITHUB_WORKSPACE/logcat-app.txt"
+          if grep -q "DEAD" "$GITHUB_WORKSPACE/smoke-verdict.txt"; then
+            echo "App process died within 30s of launch"
+            exit 1
+          fi
+          SMOKE_EOF
+          chmod +x "$GITHUB_WORKSPACE/smoke-test.sh"
+          ls -l "$GITHUB_WORKSPACE/smoke-test.sh"
+
       - name: Launch in emulator and capture logcat
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -114,31 +157,7 @@ jobs:
           ram-size: 4096M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          script: |
-            set +e
-            APK="$GITHUB_WORKSPACE/apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
-            adb logcat -c
-            adb install -r "$APK"
-            echo "install exit: $?"
-            adb shell am start -n ai.multica.mobile/.MainActivity
-            sleep 30
-            if adb shell pidof ai.multica.mobile >/dev/null 2>&1; then
-              echo "ALIVE" > "$GITHUB_WORKSPACE/smoke-verdict.txt"
-            else
-              echo "DEAD" > "$GITHUB_WORKSPACE/smoke-verdict.txt"
-            fi
-            adb logcat -b crash -d > "$GITHUB_WORKSPACE/logcat-crash.txt" || true
-            adb logcat -d | grep -E "ai.multica.mobile|FATAL|AndroidRuntime" > "$GITHUB_WORKSPACE/logcat-app.txt" || true
-            echo "=== VERDICT ==="
-            cat "$GITHUB_WORKSPACE/smoke-verdict.txt"
-            echo "=== CRASH BUFFER ==="
-            cat "$GITHUB_WORKSPACE/logcat-crash.txt"
-            echo "=== APP LOGCAT MATCHES ==="
-            head -100 "$GITHUB_WORKSPACE/logcat-app.txt"
-            if grep -q "DEAD" "$GITHUB_WORKSPACE/smoke-verdict.txt"; then
-              echo "App process died within 30s of launch"
-              exit 1
-            fi
+          script: bash "$GITHUB_WORKSPACE/smoke-test.sh"
 
       - name: Upload smoke logs
         if: always()
