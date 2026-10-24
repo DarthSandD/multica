@@ -1,0 +1,166 @@
+name: Android Emulator Smoke
+
+# CI-only reproduction of the release APK crash (DARR-41): the sandbox
+# cannot boot an emulator (no KVM), so this job builds the production
+# release APK exactly like the Android APK workflow, then launches it in
+# a KVM-enabled emulator on a GitHub-hosted runner and captures logcat.
+# Manual trigger only. It never publishes anything; it only reports
+# whether the app stays alive and, if it dies, the crash log.
+# This is a diagnostic job: a DEAD verdict fails the run on purpose.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Check Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/build-tools" "$ANDROID_HOME/platforms"
+
+      - name: Install dependencies
+        working-directory: .
+        run: pnpm install
+
+      - name: Prebuild Android (production)
+        env:
+          CI: "1"
+          NODE_ENV: production
+          APP_ENV: production
+          EXPO_PUBLIC_API_URL: https://api.multica.ai
+          EXPO_PUBLIC_WEB_URL: https://multica.ai
+        run: |
+          export APP_ENV=production NODE_ENV=production
+          export EXPO_PUBLIC_API_URL=https://api.multica.ai
+          export EXPO_PUBLIC_WEB_URL=https://multica.ai
+          npx expo prebuild --platform android --clean
+
+      - name: Verify production variant
+        run: |
+          grep -q '<string name="app_name">Multica</string>' android/app/src/main/res/values/strings.xml
+          grep -q "applicationId 'ai.multica.mobile'" android/app/build.gradle
+          if grep -q 'ai.multica.mobile.dev' android/app/build.gradle android/app/src/main/res/values/strings.xml; then
+            echo "ERROR: dev variant leaked into generated Android project"
+            exit 1
+          fi
+
+      - name: Ensure test signing keystore
+        run: |
+          if [ ! -f android/app/debug.keystore ]; then
+            keytool -genkey -v -keystore android/app/debug.keystore \
+              -storepass android -keypass android -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          ls -l android/app/debug.keystore
+
+      - name: Build release APK
+        working-directory: apps/mobile/android
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          CI: "1"
+          NODE_ENV: production
+          APP_ENV: production
+          EXPO_PUBLIC_API_URL: https://api.multica.ai
+          EXPO_PUBLIC_WEB_URL: https://multica.ai
+        run: |
+          export APP_ENV=production NODE_ENV=production
+          export EXPO_PUBLIC_API_URL=https://api.multica.ai
+          export EXPO_PUBLIC_WEB_URL=https://multica.ai
+          ./gradlew assembleRelease --no-daemon --console=plain
+
+      - name: Verify release bundle
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          rm -rf /tmp/apk-check && mkdir -p /tmp/apk-check
+          unzip -o -q "$APK" assets/index.android.bundle assets/app.config -d /tmp/apk-check
+          test -s /tmp/apk-check/assets/index.android.bundle
+          grep -a -q "api.multica.ai" /tmp/apk-check/assets/index.android.bundle
+          grep -q "production" /tmp/apk-check/assets/app.config
+          ls -l "$APK" /tmp/apk-check/assets/index.android.bundle
+
+      - name: Launch in emulator and capture logcat
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: Nexus 5X
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            set +e
+            APK="$GITHUB_WORKSPACE/apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+            adb logcat -c
+            adb install -r "$APK"
+            echo "install exit: $?"
+            adb shell am start -n ai.multica.mobile/.MainActivity
+            sleep 30
+            if adb shell pidof ai.multica.mobile >/dev/null 2>&1; then
+              echo "ALIVE" > "$GITHUB_WORKSPACE/smoke-verdict.txt"
+            else
+              echo "DEAD" > "$GITHUB_WORKSPACE/smoke-verdict.txt"
+            fi
+            adb logcat -b crash -d > "$GITHUB_WORKSPACE/logcat-crash.txt" || true
+            adb logcat -d | grep -E "ai.multica.mobile|FATAL|AndroidRuntime" > "$GITHUB_WORKSPACE/logcat-app.txt" || true
+            echo "=== VERDICT ==="
+            cat "$GITHUB_WORKSPACE/smoke-verdict.txt"
+            echo "=== CRASH BUFFER ==="
+            cat "$GITHUB_WORKSPACE/logcat-crash.txt"
+            echo "=== APP LOGCAT MATCHES ==="
+            head -100 "$GITHUB_WORKSPACE/logcat-app.txt"
+            if grep -q "DEAD" "$GITHUB_WORKSPACE/smoke-verdict.txt"; then
+              echo "App process died within 30s of launch"
+              exit 1
+            fi
+
+      - name: Upload smoke logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: multica-emulator-smoke-logs
+          path: |
+            smoke-verdict.txt
+            logcat-crash.txt
+            logcat-app.txt
+          if-no-files-found: warn
+
+      - name: Summarize verdict
+        if: always()
+        run: |
+          {
+            echo "## Emulator smoke verdict"
+            echo ""
+            echo "Verdict: $(cat "$GITHUB_WORKSPACE/smoke-verdict.txt" 2>/dev/null || echo UNKNOWN)"
+            echo ""
+            echo "### Crash buffer"
+            echo '```'
+            head -100 "$GITHUB_WORKSPACE/logcat-crash.txt" 2>/dev/null || echo "(no crash buffer captured)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
