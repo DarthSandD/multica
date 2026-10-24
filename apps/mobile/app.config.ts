@@ -62,6 +62,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           ? (process.env.EXPO_BUNDLE_IDENTIFIER_STAGING ?? "ai.multica.mobile.staging")
           : (process.env.EXPO_BUNDLE_IDENTIFIER_DEV ?? "ai.multica.mobile.dev"),
     },
+    // Android port: same variant scheme as iOS, so prod / staging / dev
+    // installs stay distinct on one device.
+    android: {
+      package: isProd
+        ? (process.env.EXPO_ANDROID_PACKAGE_PROD ?? "ai.multica.mobile")
+        : isStaging
+          ? (process.env.EXPO_ANDROID_PACKAGE_STAGING ?? "ai.multica.mobile.staging")
+          : (process.env.EXPO_ANDROID_PACKAGE_DEV ?? "ai.multica.mobile.dev"),
+    },
     plugins: [
       "expo-router",
       "expo-image",
