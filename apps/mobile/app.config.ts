@@ -72,6 +72,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           : (process.env.EXPO_ANDROID_PACKAGE_DEV ?? "ai.multica.mobile.dev"),
     },
     plugins: [
+      "./plugins/with-ndk-version",
       "expo-router",
       "expo-image",
       "expo-localization",
