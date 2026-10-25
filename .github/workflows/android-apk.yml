@@ -21,13 +21,6 @@ name: Android APK
 
 on:
   workflow_dispatch:
-  # TEMPORARY probe (DARR-41 UI/UX build): workflow_dispatch returns
-  # 422 "Actions has been disabled" despite the repo reporting
-  # enabled:true. If a push to main starts this job, dispatch is the
-  # broken path, not Actions itself. Revert this trigger once the
-  # build is queued.
-  push:
-    branches: [main]
 
 jobs:
   apk:
