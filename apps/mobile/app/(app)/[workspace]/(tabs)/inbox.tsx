@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from "react";
 import {
-  ActionSheetIOS,
   Alert,
   FlatList,
   View,
@@ -29,6 +28,7 @@ import { useWorkspaceStore } from "@/data/workspace-store";
 import { useColorScheme } from "@/lib/use-color-scheme";
 import { THEME } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
+import { showActionSheet } from "@/lib/show-action-sheet";
 import {
   deduplicateInboxItems,
   getInboxNavigationTarget,
@@ -70,7 +70,7 @@ export default function Inbox() {
   // Trailing batch menu — mirrors web's dropdown
   // (packages/views/inbox/components/inbox-page.tsx). "Mark all read" is
   // first (most common batch op); "Archive all" is destructive so it gets
-  // the iOS red treatment + Alert confirm.
+  // the destructive treatment + Alert confirm.
   const onPressMenu = () => {
     const options = [
       t("common:actions.cancel"),
@@ -79,7 +79,7 @@ export default function Inbox() {
       t("actions.archive_completed"),
       t("actions.archive_all"),
     ];
-    ActionSheetIOS.showActionSheetWithOptions(
+    showActionSheet(
       {
         options,
         cancelButtonIndex: 0,

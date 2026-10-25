@@ -23,8 +23,9 @@
  * leaves the real tab button entirely alone.
  *
  * Visual conventions inside the popover (apps/mobile/CLAUDE.md):
- *   - All glyphs are SF Symbols rendered via expo-image (`sf:` source),
- *     so they share the visual language of the bottom tab bar icons.
+ *   - All glyphs go through `<SFSymbol>` (SF Symbols on iOS, the
+ *     closest Ionicons glyph on Android), so they share the visual
+ *     language of the bottom tab bar icons on both platforms.
  *   - All colours route through THEME tokens (foreground /
  *     mutedForeground / secondary), so dark mode is automatic.
  *   - Workspace is collapsed to a single `<WorkspaceCard>` row (icon +
@@ -35,8 +36,7 @@
  *     and offered no friction against accidental taps.
  */
 import { useMemo } from "react";
-import { Image, Pressable, View } from "react-native";
-import { Image as ExpoImage } from "expo-image";
+import { Image, Platform, Pressable, View } from "react-native";
 import { router, usePathname } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -50,6 +50,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Text } from "@/components/ui/text";
+import { SFSymbol } from "@/components/ui/sf-icon";
 import { WorkspaceAvatar } from "@/components/workspace/workspace-avatar";
 import { workspaceListOptions } from "@/data/queries/workspaces";
 import { useAuthStore } from "@/data/auth-store";
@@ -59,16 +60,20 @@ import { useColorScheme } from "@/lib/use-color-scheme";
 import { THEME } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
-// iOS bottom tab bar default height (above safe-area). React Navigation
-// doesn't expose this as a layout constant, but the value is stable
-// across Expo Router 55 / RN Screens 4 — see BottomTabBar.tsx in
+// Bottom tab bar height above the safe-area, used only to size the
+// invisible anchor rect the popover positions against. iOS: React
+// Navigation doesn't expose this as a layout constant, but the value is
+// stable across Expo Router 55 / RN Screens 4 — see BottomTabBar.tsx in
 // @react-navigation/bottom-tabs (`styles.tab` has no explicit height;
 // the container settles at 49 from the inner padding + icon size).
-const TAB_BAR_HEIGHT = 49;
+// Android: the Material bottom-navigation standard height (56); the
+// anchor only sets the popover's vertical origin, so a few px of error
+// would overlap the tab bar slightly, not break the menu.
+const TAB_BAR_HEIGHT = Platform.select({ ios: 49, android: 56, default: 49 });
 
 interface NavItem {
   labelKey: "more_menu.pinned" | "more_menu.issues" | "more_menu.projects";
-  /** SF Symbol name, rendered via expo-image `source: "sf:<name>"`. */
+  /** SF Symbol name, rendered via `<SFSymbol>`. */
   icon: string;
   /** Path under /:slug/ — final href is `/${slug}${path}`. */
   path: string;
@@ -160,10 +165,10 @@ export function MoreTabDropdownAnchor({
                 isActive(item.path) && "bg-secondary",
               )}
             >
-              <ExpoImage
-                source={`sf:${item.icon}`}
-                tintColor={theme.foreground}
-                style={{ width: 18, height: 18 }}
+              <SFSymbol
+                name={item.icon}
+                size={18}
+                color={theme.foreground}
               />
               <Text className="text-sm text-foreground">{t(item.labelKey)}</Text>
             </DropdownMenuItem>
@@ -225,11 +230,7 @@ function UserCard({
           </Text>
         ) : null}
       </View>
-      <ExpoImage
-        source="sf:chevron.right"
-        tintColor={chevronTint}
-        style={{ width: 12, height: 12 }}
-      />
+      <SFSymbol name="chevron.right" size={12} color={chevronTint} />
     </DropdownMenuItem>
   );
 }
@@ -289,11 +290,7 @@ function WorkspaceCard({
         </Text>
       </View>
       {canSwitch ? (
-        <ExpoImage
-          source="sf:chevron.right"
-          tintColor={chevronTint}
-          style={{ width: 12, height: 12 }}
-        />
+        <SFSymbol name="chevron.right" size={12} color={chevronTint} />
       ) : null}
     </DropdownMenuItem>
   );

@@ -1,8 +1,8 @@
 /**
  * Profile edit subscreen — name + avatar.
  *
- * Avatar tap opens an iOS native ActionSheet (Take Photo / Choose from Library
- * / Remove). Mirrors the avatar upload flow in
+ * Avatar tap opens an action sheet (native on iOS, shared bottom sheet
+ * on Android: Take Photo / Choose from Library / Remove). Mirrors the avatar upload flow in
  * packages/views/settings/components/account-tab.tsx but the picker uses
  * native APIs per CLAUDE.md "iOS native > RNR > discuss" waterfall.
  *
@@ -12,7 +12,6 @@
  */
 import { useState } from "react";
 import {
-  ActionSheetIOS,
   Alert,
   ActivityIndicator,
   Pressable,
@@ -29,6 +28,7 @@ import { useAuthStore } from "@/data/auth-store";
 import { api } from "@/data/api";
 import type { FileAsset } from "@/data/api";
 import { useT } from "@/lib/i18n";
+import { showActionSheet } from "@/lib/show-action-sheet";
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB — matches what's reasonable on cellular.
 
@@ -78,7 +78,7 @@ export default function ProfileSettingsScreen() {
             : t("common:actions.cancel"),
     );
 
-    ActionSheetIOS.showActionSheetWithOptions(
+    showActionSheet(
       {
         options: visibleOptions,
         cancelButtonIndex: cancelIndex,

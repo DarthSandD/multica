@@ -12,7 +12,6 @@
  */
 import { useCallback, useEffect } from "react";
 import {
-  ActionSheetIOS,
   ActivityIndicator,
   Alert,
   Linking,
@@ -43,6 +42,7 @@ import { useViewedIssuesStore } from "@/data/viewed-issues-store";
 import { useCommentSelectStore } from "@/data/comment-select-store";
 import { useReplyTargetStore } from "@/data/stores/reply-target-store";
 import { useT } from "@/lib/i18n";
+import { showActionSheet } from "@/lib/show-action-sheet";
 
 export default function IssueDetail() {
   // `highlight` + `h` come from inbox deep-link (apps/mobile/app/(app)/
@@ -109,7 +109,7 @@ export default function IssueDetail() {
 
   // Three-dot menu: Pin/Unpin / Copy link / Open on web (if web URL set) /
   // Delete. Mirrors apps/mobile/app/(app)/[workspace]/project/[id].tsx — same
-  // ActionSheetIOS + Alert.alert confirm pattern. Property edits (status,
+  // action-sheet + Alert.alert confirm pattern. Property edits (status,
   // priority, assignee, due_date) live on the IssueHeaderCard chips inside
   // the timeline list, not in this menu — one entry per action.
   const onPressMore = useCallback(() => {
@@ -140,7 +140,7 @@ export default function IssueDetail() {
                   : t("menu.delete_issue"),
     );
     const destructiveIndex = options.length - 1;
-    ActionSheetIOS.showActionSheetWithOptions(
+    showActionSheet(
       {
         options,
         cancelButtonIndex: 0,

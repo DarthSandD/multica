@@ -1,12 +1,16 @@
 /**
- * Native long-press actions for a comment bubble, with a pressed highlight
+ * Long-press actions for a comment bubble, with a pressed highlight
  * while the sheet is visible. Reply targets the inline composer.
+ * `showActionSheet` routes iOS to the native ActionSheetIOS and Android
+ * to the shared bottom sheet.
  *
  * Present nested reaction sheets from the outer sheet's completion callback;
- * iOS cannot present the next ActionSheet while the first is dismissing.
+ * iOS cannot present the next ActionSheet while the first is dismissing,
+ * and the Android host clears the request before invoking the callback
+ * so a nested sheet is not wiped by the dismissal.
  */
 import { useCallback, useState } from "react";
-import { ActionSheetIOS, Alert } from "react-native";
+import { Alert } from "react-native";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
@@ -26,6 +30,7 @@ import {
 import { appConfigOptions } from "@/data/queries/billing";
 import { QUICK_EMOJIS } from "@/lib/quick-emojis";
 import { i18n, useT } from "@/lib/i18n";
+import { showActionSheet } from "@/lib/show-action-sheet";
 
 const QUICK_ROW_SIZE = 5;
 
@@ -98,7 +103,7 @@ export function useCommentLongPress(
       ? actions.findIndex((a) => a.kind === "delete")
       : undefined;
 
-    ActionSheetIOS.showActionSheetWithOptions(
+    showActionSheet(
       {
         options,
         cancelButtonIndex,
@@ -229,7 +234,7 @@ function presentReactSheet(args: {
   ];
   const cancelButtonIndex = options.length - 1;
 
-  ActionSheetIOS.showActionSheetWithOptions(
+  showActionSheet(
     { options, cancelButtonIndex },
     (i) => {
       if (i === cancelButtonIndex) return;
