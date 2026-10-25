@@ -1,0 +1,1 @@
+{"errors":{"load_failed":"加载工作区设置失败：{{message}}"},"list":{"empty":"未找到工作区。"},"title":"工作区设置","workspace":{"members":"成员","members_count_other":"{{count}} 名成员","name":"名称","slug":"标识","title":"工作区"}}

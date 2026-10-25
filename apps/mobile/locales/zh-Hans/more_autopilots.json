@@ -1,0 +1,1 @@
+{"errors":{"load_failed":"加载自动任务失败：{{message}}"},"list":{"empty":"暂无自动任务","title":"自动任务"},"quota":{"reached":"已达到运行上限","used":"已使用 {{used}} / {{limit}} 次运行"},"row":{"last_run":"上次运行 {{date}}","never_run":"从未运行","next_run":"下次运行 {{date}}"},"status":{"active":"运行中","archived":"已归档","paused":"已暂停"},"trigger":{"api":"API","schedule":"定时","webhook":"Webhook"}}

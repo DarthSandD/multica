@@ -1,0 +1,1 @@
+{"errors":{"load_failed":"Failed to load runtimes: {{message}}"},"list":{"empty":"No runtimes yet"},"status":{"offline":"Offline","online":"Online","unstable":"Unstable"}}

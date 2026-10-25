@@ -72,7 +72,18 @@ import { cn } from "@/lib/utils";
 const TAB_BAR_HEIGHT = Platform.select({ ios: 49, android: 56, default: 49 });
 
 interface NavItem {
-  labelKey: "more_menu.pinned" | "more_menu.issues" | "more_menu.projects";
+  labelKey:
+    | "more_menu.pinned"
+    | "more_menu.issues"
+    | "more_menu.projects"
+    | "more_menu.agents"
+    | "more_menu.members"
+    | "more_menu.squads"
+    | "more_menu.runtimes"
+    | "more_menu.skills"
+    | "more_menu.autopilots"
+    | "more_menu.usage"
+    | "more_menu.billing";
   /** SF Symbol name, rendered via `<SFSymbol>`. */
   icon: string;
   /** Path under /:slug/ — final href is `/${slug}${path}`. */
@@ -83,6 +94,18 @@ const NAV_ITEMS: NavItem[] = [
   { labelKey: "more_menu.pinned", icon: "pin", path: "/more/pins" },
   { labelKey: "more_menu.issues", icon: "list.bullet", path: "/more/issues" },
   { labelKey: "more_menu.projects", icon: "square.stack", path: "/more/projects" },
+  { labelKey: "more_menu.agents", icon: "bubble.left", path: "/more/agents" },
+  { labelKey: "more_menu.members", icon: "person.2", path: "/more/members" },
+  { labelKey: "more_menu.squads", icon: "person.3", path: "/more/squads" },
+  { labelKey: "more_menu.runtimes", icon: "server.rack", path: "/more/runtimes" },
+  { labelKey: "more_menu.skills", icon: "square.stack.3d", path: "/more/skills" },
+  {
+    labelKey: "more_menu.autopilots",
+    icon: "bolt.fill",
+    path: "/more/autopilots",
+  },
+  { labelKey: "more_menu.usage", icon: "chart.bar.fill", path: "/more/usage" },
+  { labelKey: "more_menu.billing", icon: "checklist", path: "/more/billing" },
 ];
 
 export function MoreTabDropdownAnchor({

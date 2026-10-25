@@ -1,0 +1,1 @@
+{"availability":{"archived":"Archived","offline":"Offline","online":"Online","unstable":"Unstable"},"errors":{"load_failed":"Could not load agents: {{message}}"},"list":{"empty":"No agents in this workspace yet."}}

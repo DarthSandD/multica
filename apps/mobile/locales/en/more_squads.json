@@ -1,0 +1,1 @@
+{"errors":{"load_failed":"Failed to load squads: {{message}}"},"list":{"empty":"No squads yet","member_count_one":"1 member","member_count_other":"{{count}} members"}}

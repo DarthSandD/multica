@@ -7,6 +7,7 @@
     "workspace": "工作区",
     "workspaces": "工作区",
     "notifications_subtitle": "收件箱和系统提醒",
+    "workspace_settings": "工作区设置",
     "load_failed": "工作区加载失败"
   },
   "profile": {

@@ -1,0 +1,1 @@
+{"errors":{"load_failed":"Could not load workspace settings: {{message}}"},"list":{"empty":"Workspace not found."},"title":"Workspace Settings","workspace":{"members":"Members","members_count_one":"{{count}} member","members_count_other":"{{count}} members","name":"Name","slug":"Slug","title":"Workspace"}}

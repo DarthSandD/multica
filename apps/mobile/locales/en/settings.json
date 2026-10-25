@@ -7,6 +7,7 @@
     "workspace": "Workspace",
     "workspaces": "Workspaces",
     "notifications_subtitle": "Inbox and system alerts",
+    "workspace_settings": "Workspace settings",
     "load_failed": "Failed to load workspaces"
   },
   "profile": {

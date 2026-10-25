@@ -315,6 +315,62 @@ export default function WorkspaceLayout() {
             }}
         />
         <Stack.Screen
+          name="more/members"
+            options={{
+              title: t("navigation:routes.members"),
+              headerBackTitle: t("back"),
+            }}
+        />
+        <Stack.Screen
+          name="more/squads"
+            options={{
+              title: t("navigation:routes.squads"),
+              headerBackTitle: t("back"),
+            }}
+        />
+        <Stack.Screen
+          name="more/runtimes"
+            options={{
+              title: t("navigation:routes.runtimes"),
+              headerBackTitle: t("back"),
+            }}
+        />
+        <Stack.Screen
+          name="more/skills"
+            options={{
+              title: t("navigation:routes.skills"),
+              headerBackTitle: t("back"),
+            }}
+        />
+        <Stack.Screen
+          name="more/autopilots"
+            options={{
+              title: t("navigation:routes.autopilots"),
+              headerBackTitle: t("back"),
+            }}
+        />
+        <Stack.Screen
+          name="more/usage"
+            options={{
+              title: t("navigation:routes.usage"),
+              headerBackTitle: t("back"),
+            }}
+        />
+        <Stack.Screen
+          name="more/billing"
+            options={{
+              title: t("navigation:routes.billing"),
+              headerBackTitle: t("back"),
+            }}
+        />
+        <Stack.Screen
+          name="more/workspace-settings"
+            options={{
+              title: t("navigation:routes.workspace_settings"),
+              headerBackTitle: t("back"),
+            }}
+        />
+        <Stack.Screen
           name="more/pins"
             options={{
               title: t("navigation:routes.pinned"),

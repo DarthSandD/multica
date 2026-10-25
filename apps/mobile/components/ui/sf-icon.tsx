@@ -30,6 +30,12 @@ const ANDROID_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   pin: "pin",
   "list.bullet": "list",
   "square.stack": "layers-outline",
+  "person.2": "people-outline",
+  "person.3": "people",
+  "server.rack": "server-outline",
+  "square.stack.3d": "albums-outline",
+  "bolt.fill": "flash-outline",
+  "chart.bar.fill": "bar-chart-outline",
 };
 
 export function SFSymbol({

@@ -95,6 +95,9 @@ export default function SettingsPage() {
   const goProfile = () => router.push(`/${currentSlug}/more/settings/profile`);
   const goNotifications = () =>
     router.push(`/${currentSlug}/more/settings/notifications`);
+  const goWorkspaceSettings = () =>
+    router.push(`/${currentSlug}/more/workspace-settings`);
+  const currentWorkspace = data?.find((ws) => ws.slug === currentSlug);
 
   return (
     <ScrollView
@@ -126,6 +129,13 @@ export default function SettingsPage() {
           chevronColor={mutedFg}
           title={t("notifications.title")}
           subtitle={t("account.notifications_subtitle")}
+        />
+        <Separator />
+        <NavRow
+          onPress={goWorkspaceSettings}
+          chevronColor={mutedFg}
+          title={t("account.workspace_settings")}
+          subtitle={currentWorkspace?.name ?? currentSlug ?? undefined}
         />
       </SectionGroup>
 
