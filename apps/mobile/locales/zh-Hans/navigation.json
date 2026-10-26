@@ -18,7 +18,14 @@
     "autopilots": "自动任务",
     "usage": "用量",
     "billing": "账单",
-    "account_settings": "账号设置"
+    "account_settings": "账号设置",
+    "groups": {
+      "pinned": "已固定",
+      "work": "工作",
+      "ai_team": "AI 团队",
+      "workspace": "工作区",
+      "utility": "实用工具"
+    }
   },
   "routes": {
     "issues": "任务",

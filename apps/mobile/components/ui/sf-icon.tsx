@@ -36,6 +36,9 @@ const ANDROID_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   "square.stack.3d": "albums-outline",
   "bolt.fill": "flash-outline",
   "chart.bar.fill": "bar-chart-outline",
+  cpu: "hardware-chip-outline",
+  "building.2": "business-outline",
+  gear: "settings-outline",
 };
 
 export function SFSymbol({

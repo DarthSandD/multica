@@ -18,7 +18,14 @@
     "autopilots": "Autopilots",
     "usage": "Usage",
     "billing": "Billing",
-    "account_settings": "Account settings"
+    "account_settings": "Account settings",
+    "groups": {
+      "pinned": "Pinned",
+      "work": "Work",
+      "ai_team": "AI Team",
+      "workspace": "Workspace",
+      "utility": "Utility"
+    }
   },
   "routes": {
     "issues": "Issues",

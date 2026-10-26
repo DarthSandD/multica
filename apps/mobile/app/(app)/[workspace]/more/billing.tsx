@@ -15,15 +15,12 @@
  * is a real failure and the screen shows an error state with retry —
  * matching web's `summaryUnavailable` (error, or fetched-but-null).
  *
- * Title is set here via Stack.Screen: this route has no entry in the
- * parent `_layout.tsx` yet (title registration lands with the
- * coordinator's merge pass), and the in-screen option keeps the header
- * correct in the meantime.
+ * Title is registered in the parent `_layout.tsx` (Stack.Screen for
+ * `more/billing`); no in-screen title override lives here.
  */
 import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
-import { Stack } from "expo-router";
 import { BILLING_WORKSPACE_SUBSCRIPTIONS_FLAG } from "@multica/core/feature-flags";
 import type { WorkspaceSubscriptionSummary } from "@multica/core/types";
 import { Text } from "@/components/ui/text";
@@ -63,7 +60,6 @@ export default function BillingPage() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={[]}>
-      <Stack.Screen options={{ title: t("title") }} />
       {configQuery.isLoading ? (
         <BillingLoading />
       ) : configQuery.error ? (

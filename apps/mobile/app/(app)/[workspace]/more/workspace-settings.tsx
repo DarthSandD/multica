@@ -12,15 +12,12 @@
  * em dash while the rest renders — the workspace query owns the page's
  * error state with retry.
  *
- * Title is set here via Stack.Screen: this route has no entry in the
- * parent `_layout.tsx` yet (title registration lands with the
- * coordinator's merge pass), and the in-screen option keeps the header
- * correct in the meantime.
+ * Title is registered in the parent `_layout.tsx` (Stack.Screen for
+ * `more/workspace-settings`); no in-screen title override lives here.
  */
 import { ActivityIndicator, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
-import { Stack } from "expo-router";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -44,7 +41,6 @@ export default function WorkspaceSettingsPage() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={[]}>
-      <Stack.Screen options={{ title: t("title") }} />
       {workspacesQuery.isLoading ? (
         <WorkspaceSettingsLoading />
       ) : workspacesQuery.error ? (

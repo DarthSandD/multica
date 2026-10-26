@@ -37,6 +37,7 @@
  */
 import { useMemo } from "react";
 import { Image, Platform, Pressable, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { router, usePathname } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -47,16 +48,19 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Text } from "@/components/ui/text";
 import { SFSymbol } from "@/components/ui/sf-icon";
 import { WorkspaceAvatar } from "@/components/workspace/workspace-avatar";
 import { workspaceListOptions } from "@/data/queries/workspaces";
+import { pinListOptions } from "@/data/queries/pins";
 import { useAuthStore } from "@/data/auth-store";
 import { useWorkspaceStore } from "@/data/workspace-store";
 import { useT } from "@/lib/i18n";
 import { useColorScheme } from "@/lib/use-color-scheme";
+import { usePressScale } from "@/lib/spring-touch";
 import { THEME } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -83,29 +87,79 @@ interface NavItem {
     | "more_menu.skills"
     | "more_menu.autopilots"
     | "more_menu.usage"
-    | "more_menu.billing";
+    | "more_menu.billing"
+    | "routes.workspace_settings"
+    | "routes.settings";
   /** SF Symbol name, rendered via `<SFSymbol>`. */
   icon: string;
   /** Path under /:slug/ — final href is `/${slug}${path}`. */
   path: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { labelKey: "more_menu.pinned", icon: "pin", path: "/more/pins" },
-  { labelKey: "more_menu.issues", icon: "list.bullet", path: "/more/issues" },
-  { labelKey: "more_menu.projects", icon: "square.stack", path: "/more/projects" },
-  { labelKey: "more_menu.agents", icon: "bubble.left", path: "/more/agents" },
-  { labelKey: "more_menu.members", icon: "person.2", path: "/more/members" },
-  { labelKey: "more_menu.squads", icon: "person.3", path: "/more/squads" },
-  { labelKey: "more_menu.runtimes", icon: "server.rack", path: "/more/runtimes" },
-  { labelKey: "more_menu.skills", icon: "square.stack.3d", path: "/more/skills" },
+interface NavGroup {
+  labelKey:
+    | "more_menu.groups.pinned"
+    | "more_menu.groups.work"
+    | "more_menu.groups.ai_team"
+    | "more_menu.groups.workspace"
+    | "more_menu.groups.utility";
+  items: NavItem[];
+}
+
+/**
+ * Desktop sidebar order, adapted to the phone (desktop-look spec §5.1):
+ * Pinned, then Work (Issues, Projects, Autopilots), AI Team (Agents,
+ * Squads, Skills, Runtimes), Workspace (Members, Workspace Settings),
+ * Utility (Usage, Billing, Settings). Agents uses `cpu`, not Chat's
+ * `bubble.left` — desktop Agents is Bot, and the chip glyph maps on
+ * both platforms. Workspace Settings uses `building.2`; Settings uses
+ * `gear`, so the two adjacent gears problem does not arise.
+ */
+const NAV_GROUPS: NavGroup[] = [
   {
-    labelKey: "more_menu.autopilots",
-    icon: "bolt.fill",
-    path: "/more/autopilots",
+    labelKey: "more_menu.groups.pinned",
+    items: [{ labelKey: "more_menu.pinned", icon: "pin", path: "/more/pins" }],
   },
-  { labelKey: "more_menu.usage", icon: "chart.bar.fill", path: "/more/usage" },
-  { labelKey: "more_menu.billing", icon: "checklist", path: "/more/billing" },
+  {
+    labelKey: "more_menu.groups.work",
+    items: [
+      { labelKey: "more_menu.issues", icon: "list.bullet", path: "/more/issues" },
+      { labelKey: "more_menu.projects", icon: "square.stack", path: "/more/projects" },
+      {
+        labelKey: "more_menu.autopilots",
+        icon: "bolt.fill",
+        path: "/more/autopilots",
+      },
+    ],
+  },
+  {
+    labelKey: "more_menu.groups.ai_team",
+    items: [
+      { labelKey: "more_menu.agents", icon: "cpu", path: "/more/agents" },
+      { labelKey: "more_menu.squads", icon: "person.3", path: "/more/squads" },
+      { labelKey: "more_menu.skills", icon: "square.stack.3d", path: "/more/skills" },
+      { labelKey: "more_menu.runtimes", icon: "server.rack", path: "/more/runtimes" },
+    ],
+  },
+  {
+    labelKey: "more_menu.groups.workspace",
+    items: [
+      { labelKey: "more_menu.members", icon: "person.2", path: "/more/members" },
+      {
+        labelKey: "routes.workspace_settings",
+        icon: "building.2",
+        path: "/more/workspace-settings",
+      },
+    ],
+  },
+  {
+    labelKey: "more_menu.groups.utility",
+    items: [
+      { labelKey: "more_menu.usage", icon: "chart.bar.fill", path: "/more/usage" },
+      { labelKey: "more_menu.billing", icon: "checklist", path: "/more/billing" },
+      { labelKey: "routes.settings", icon: "gear", path: "/more/settings" },
+    ],
+  },
 ];
 
 export function MoreTabDropdownAnchor({
@@ -115,12 +169,29 @@ export function MoreTabDropdownAnchor({
 }) {
   const insets = useSafeAreaInsets();
   const slug = useWorkspaceStore((s) => s.currentWorkspaceSlug);
+  const wsId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const user = useAuthStore((s) => s.user);
   const pathname = usePathname();
   const { colorScheme } = useColorScheme();
   const { t } = useT("navigation");
   const theme = THEME[colorScheme];
   const currentWorkspace = useCurrentWorkspace(slug);
+
+  // The Pinned group renders only when the pins query returns at least
+  // one pin — desktop hides an empty Pinned group the same way. While
+  // the query is loading or disabled the group is omitted, never empty.
+  const pinsQuery = useQuery(
+    pinListOptions(wsId, user?.id ?? null),
+  );
+  const visibleGroups = useMemo(
+    () =>
+      NAV_GROUPS.filter(
+        (group) =>
+          group.labelKey !== "more_menu.groups.pinned" ||
+          (pinsQuery.data?.length ?? 0) > 0,
+      ),
+    [pinsQuery.data],
+  );
 
   const isActive = (path: string) => {
     if (!slug) return false;
@@ -178,27 +249,64 @@ export function MoreTabDropdownAnchor({
 
           <DropdownMenuSeparator />
 
-          {NAV_ITEMS.map((item) => (
-            <DropdownMenuItem
-              key={item.path}
-              onPress={() => slug && router.push(`/${slug}${item.path}`)}
-              accessibilityLabel={t(item.labelKey)}
-              className={cn(
-                "h-9 gap-3",
-                isActive(item.path) && "bg-secondary",
-              )}
-            >
-              <SFSymbol
-                name={item.icon}
-                size={18}
-                color={theme.foreground}
-              />
-              <Text className="text-sm text-foreground">{t(item.labelKey)}</Text>
-            </DropdownMenuItem>
+          {visibleGroups.map((group) => (
+            <View key={group.labelKey}>
+              <DropdownMenuLabel className="px-4 uppercase tracking-wider">
+                {t(group.labelKey)}
+              </DropdownMenuLabel>
+              {group.items.map((item) => (
+                <PopoverRow
+                  key={item.path}
+                  item={item}
+                  active={isActive(item.path)}
+                  onPress={() => slug && router.push(`/${slug}${item.path}`)}
+                />
+              ))}
+            </View>
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
     </View>
+  );
+}
+
+/**
+ * One popover nav row with iOS Touch press feedback: the row scales to
+ * 0.97 on the snappy spring while pressed and springs back on release.
+ * The Animated wrapper carries the transform; the DropdownMenuItem keeps
+ * its own press handling, so navigation and active styling are
+ * unchanged. Transform only, no layout properties; reduced motion swaps
+ * the spring for the library's short bounce-free timing animation.
+ */
+function PopoverRow({
+  item,
+  active,
+  onPress,
+}: {
+  item: NavItem;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const { t } = useT("navigation");
+  const { colorScheme } = useColorScheme();
+  const theme = THEME[colorScheme];
+  const { animatedStyle, onPressIn, onPressOut } = usePressScale({
+    pressedScale: 0.97,
+    preset: "snappy",
+  });
+  return (
+    <Animated.View style={animatedStyle}>
+      <DropdownMenuItem
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        accessibilityLabel={t(item.labelKey)}
+        className={cn("h-9 gap-3", active && "bg-secondary")}
+      >
+        <SFSymbol name={item.icon} size={18} color={theme.foreground} />
+        <Text className="text-sm text-foreground">{t(item.labelKey)}</Text>
+      </DropdownMenuItem>
+    </Animated.View>
   );
 }
 
