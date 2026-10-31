@@ -11,3 +11,8 @@ export const runtimeListOptions = (wsId: string | null) =>
     queryFn: ({ signal }) => api.listRuntimes({ signal }),
     enabled: !!wsId,
   });
+
+// Rename/delete mutations live in data/mutations/runtimes.ts, not here:
+// this query file must stay a pure queryOptions + api module, because
+// lib/use-agent-presence.ts imports runtimeListOptions in a node test
+// environment where the workspace store (expo-secure-store) cannot load.

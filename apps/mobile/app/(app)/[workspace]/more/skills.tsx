@@ -6,10 +6,11 @@
  * Rendering an in-body title row on top of the native bar would stack two
  * "Skills" labels vertically.
  *
- * List-only scope: rows are not pressable — there is no skill detail
- * route on mobile yet. The More-menu entry and the Stack.Screen title are
- * added in the coordinator's merge pass (layout + dropdown are outside
- * this change's scope).
+ * Rows are pressable and navigate to the read-only skill detail route
+ * (`more/skills/[id]`). The detail screen fetches its own record: the
+ * list payload (`SkillSummary`) carries no SKILL.md body, so the detail
+ * screen cannot reuse the list record for content. The More-menu entry
+ * and the Stack.Screen titles are registered in _layout.tsx.
  *
  * Row content mirrors the desktop skills list
  * (`packages/views/skills/components/skills-page.tsx`): name plus
@@ -22,9 +23,10 @@
  * sort.
  */
 import { useMemo } from "react";
-import { FlatList, RefreshControl, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
+import { router } from "expo-router";
 import type { SkillSummary } from "@multica/core/types";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
@@ -35,6 +37,7 @@ import { useT } from "@/lib/i18n";
 
 export default function SkillsPage() {
   const wsId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const wsSlug = useWorkspaceStore((s) => s.currentWorkspaceSlug);
   const { t } = useT("more_skills");
 
   const { data, isLoading, error, refetch, isRefetching } = useQuery(
@@ -74,7 +77,14 @@ export default function SkillsPage() {
           ItemSeparatorComponent={() => (
             <View className="h-px bg-border ml-4" />
           )}
-          renderItem={({ item }) => <SkillRow skill={item} />}
+          renderItem={({ item }) => (
+            <SkillRow
+              skill={item}
+              onPress={() => {
+                if (wsSlug) router.push(`/${wsSlug}/more/skills/${item.id}`);
+              }}
+            />
+          )}
           refreshControl={
             <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
           }
@@ -85,23 +95,31 @@ export default function SkillsPage() {
   );
 }
 
-function SkillRow({ skill }: { skill: SkillSummary }) {
+function SkillRow({
+  skill,
+  onPress,
+}: {
+  skill: SkillSummary;
+  onPress: () => void;
+}) {
   return (
-    <View className="flex-row items-center gap-3 px-4 py-3">
-      <View className="flex-1 gap-1 min-w-0">
-        <Text
-          className="text-base text-foreground font-medium"
-          numberOfLines={1}
-        >
-          {skill.name}
-        </Text>
-        {skill.description ? (
-          <Text className="text-sm text-muted-foreground" numberOfLines={2}>
-            {skill.description}
+    <Pressable onPress={onPress} className="active:bg-secondary">
+      <View className="flex-row items-center gap-3 px-4 py-3">
+        <View className="flex-1 gap-1 min-w-0">
+          <Text
+            className="text-base text-foreground font-medium"
+            numberOfLines={1}
+          >
+            {skill.name}
           </Text>
-        ) : null}
+          {skill.description ? (
+            <Text className="text-sm text-muted-foreground" numberOfLines={2}>
+              {skill.description}
+            </Text>
+          ) : null}
+        </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

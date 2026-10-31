@@ -2,8 +2,7 @@
  * Squads browse page. Flat FlatList over the workspace's squads.
  *
  * Follows the Projects page pattern (`more/projects.tsx`): native Stack
- * header chrome comes from the parent `_layout.tsx` (title registration
- * lands with the coordinator's merge pass), body is a FlatList with a
+ * header chrome comes from the parent `_layout.tsx` (title registration in _layout.tsx), body is a FlatList with a
  * skeleton loading state, an error state with retry, and an empty state.
  * Pull-to-refresh is kept for the cellular-edge case where a WS reconnect
  * missed events.
@@ -13,8 +12,8 @@
  * `member_count` is optional on the wire; when the server omits it, the
  * preview list length is the fallback, and when neither is present the
  * secondary line is omitted rather than showing a guessed zero.
- * List-only scope: rows do not navigate anywhere, since no squad detail
- * route exists on mobile yet.
+ * Rows are pressable and navigate to the squad detail route
+ * (`more/squads/[id]`).
  *
  * Sort: client-side by name ascending, so the list reads like a directory
  * instead of server insertion order.
@@ -22,11 +21,13 @@
 import { useMemo } from "react";
 import {
   FlatList,
+  Pressable,
   RefreshControl,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
+import { router } from "expo-router";
 import type { Squad } from "@multica/core/types";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import { useT } from "@/lib/i18n";
 
 export default function SquadsPage() {
   const wsId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const wsSlug = useWorkspaceStore((s) => s.currentWorkspaceSlug);
   const { t } = useT("more_squads");
 
   const { data, isLoading, error, refetch, isRefetching } = useQuery(
@@ -81,7 +83,14 @@ export default function SquadsPage() {
           ItemSeparatorComponent={() => (
             <View className="h-px bg-border ml-4" />
           )}
-          renderItem={({ item }) => <SquadRow squad={item} />}
+          renderItem={({ item }) => (
+            <SquadRow
+              squad={item}
+              onPress={() => {
+                if (wsSlug) router.push(`/${wsSlug}/more/squads/${item.id}`);
+              }}
+            />
+          )}
           refreshControl={
             <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
           }
@@ -92,11 +101,21 @@ export default function SquadsPage() {
   );
 }
 
-function SquadRow({ squad }: { squad: Squad }) {
+function SquadRow({
+  squad,
+  onPress,
+}: {
+  squad: Squad;
+  onPress: () => void;
+}) {
   const { t } = useT("more_squads");
   const count = squad.member_count ?? squad.member_preview?.length;
   return (
-    <View className="flex-row items-center gap-3 px-4 py-3">
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
+    >
       <Avatar className="size-10" alt={squad.name}>
         {squad.avatar_url ? (
           <AvatarImage source={{ uri: squad.avatar_url }} />
@@ -120,7 +139,7 @@ function SquadRow({ squad }: { squad: Squad }) {
           </Text>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 

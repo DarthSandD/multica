@@ -1,9 +1,11 @@
 /**
- * Workspace settings page — read-only workspace identity in this phase.
+ * Workspace settings page — workspace identity, with name editing in v1.
  *
- * Shows the current workspace's name, slug, and member count. No edit
- * mutations live here: editing arrives in a later phase, so there are no
- * form controls to mistake for working ones.
+ * Shows the current workspace's name, slug, and member count. The name
+ * is editable inline on this screen (Edit, then Save/Cancel); the edit
+ * awaits the server before it closes, mirroring the issue edit screen's
+ * Save/Cancel flow without a new route. Slug and member count stay
+ * read-only, and no other workspace action is added here.
  *
  * The workspace record comes from the workspace list query, resolved
  * against the current workspace id (slug as fallback); the member count
@@ -14,14 +16,30 @@
  *
  * Title is registered in the parent `_layout.tsx` (Stack.Screen for
  * `more/workspace-settings`); no in-screen title override lives here.
+ *
+ * Note: this screen calls `api.updateWorkspace` in `data/api.ts`. No optimistic
+ * patch is applied: the new name is written to the list cache only from
+ * the server response, so a non-admin (403) or other failure leaves the
+ * old name on screen and the edit open with an error alert.
  */
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Workspace } from "@multica/core/types";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MOBILE_PLACEHOLDER_COLOR } from "@/components/ui/input-tokens";
+import { api } from "@/data/api";
 import { memberListOptions } from "@/data/queries/members";
 import { workspaceListOptions } from "@/data/queries/workspaces";
 import { useWorkspaceStore } from "@/data/workspace-store";
@@ -38,6 +56,70 @@ export default function WorkspaceSettingsPage() {
   const workspace =
     workspacesQuery.data?.find((ws) => ws.id === wsId) ??
     workspacesQuery.data?.find((ws) => ws.slug === wsSlug);
+
+  // Inline name edit, following the issue edit screen's Save/Cancel
+  // shape (edit.tsx) but kept on this screen: no new route exists for
+  // workspace settings, and registering a formSheet route would require
+  // editing `_layout.tsx`, which is out of scope for this task. Plain
+  // English labels are used here deliberately — no locale files are
+  // edited in this task, so no new i18n keys are introduced.
+  const qc = useQueryClient();
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+
+  // No optimistic patch: the rename is not closed until the server
+  // answers, so a failure (including a non-admin 403, enforced by the
+  // admin-gated PUT/PATCH route) leaves the old name and the edit open.
+  const updateName = useMutation({
+    mutationKey: ["updateWorkspace", workspace?.id ?? null] as const,
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      api.updateWorkspace(id, { name }),
+    onSuccess: (server) => {
+      qc.setQueryData<Workspace[]>(
+        workspaceListOptions().queryKey,
+        (old) =>
+          old ? old.map((ws) => (ws.id === server.id ? server : ws)) : old,
+      );
+      setEditingName(false);
+    },
+    onError: (err) => {
+      Alert.alert(
+        "Could not save workspace name",
+        err instanceof Error ? err.message : "Unknown error",
+      );
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: workspaceListOptions().queryKey });
+    },
+  });
+
+  const startNameEdit = useCallback(() => {
+    if (!workspace) return;
+    setNameDraft(workspace.name);
+    setEditingName(true);
+  }, [workspace]);
+
+  const cancelNameEdit = useCallback(() => {
+    if (nameDraft.trim() !== (workspace?.name ?? "").trim()) {
+      Alert.alert("Discard changes?", "Your unsaved name change will be lost.", [
+        { text: "Keep editing", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => setEditingName(false),
+        },
+      ]);
+      return;
+    }
+    setEditingName(false);
+  }, [nameDraft, workspace]);
+
+  const saveNameEdit = useCallback(() => {
+    if (!workspace) return;
+    const name = nameDraft.trim();
+    if (!name || name === workspace.name || updateName.isPending) return;
+    updateName.mutate({ id: workspace.id, name });
+  }, [workspace, nameDraft, updateName]);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={[]}>
@@ -69,7 +151,61 @@ export default function WorkspaceSettingsPage() {
           contentContainerClassName="px-4 py-4 gap-6"
         >
           <SectionGroup title={t("workspace.title")}>
-            <DetailRow label={t("workspace.name")} value={workspace.name} />
+            <View className="px-4 py-3.5 gap-3">
+              <View className="flex-row items-center justify-between gap-3">
+                <Text className="text-base text-muted-foreground">
+                  {t("workspace.name")}
+                </Text>
+                {!editingName && (
+                  <Pressable onPress={startNameEdit} className="px-1 py-1">
+                    <Text className="text-base text-brand">Edit</Text>
+                  </Pressable>
+                )}
+              </View>
+              {editingName ? (
+                <>
+                  <TextInput
+                    value={nameDraft}
+                    onChangeText={setNameDraft}
+                    placeholder={workspace.name}
+                    placeholderTextColor={MOBILE_PLACEHOLDER_COLOR}
+                    className="text-base text-foreground bg-secondary/50 rounded-md px-3 py-2"
+                    returnKeyType="done"
+                    onSubmitEditing={saveNameEdit}
+                    editable={!updateName.isPending}
+                    autoFocus
+                  />
+                  <View className="flex-row justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onPress={cancelNameEdit}
+                      disabled={updateName.isPending}
+                    >
+                      <Text>Cancel</Text>
+                    </Button>
+                    <Button
+                      onPress={saveNameEdit}
+                      disabled={
+                        !nameDraft.trim() ||
+                        nameDraft.trim() === workspace.name ||
+                        updateName.isPending
+                      }
+                    >
+                      <Text>
+                        {updateName.isPending ? "Saving..." : "Save"}
+                      </Text>
+                    </Button>
+                  </View>
+                </>
+              ) : (
+                <Text
+                  className="text-base text-foreground font-medium"
+                  numberOfLines={1}
+                >
+                  {workspace.name}
+                </Text>
+              )}
+            </View>
             <Separator />
             <DetailRow
               label={t("workspace.slug")}

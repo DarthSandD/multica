@@ -2,16 +2,15 @@
  * Members browse page. Flat FlatList over the workspace's members.
  *
  * Follows the Projects page pattern (`more/projects.tsx`): native Stack
- * header chrome comes from the parent `_layout.tsx` (title registration
- * lands with the coordinator's merge pass), body is a FlatList with a
+ * header chrome comes from the parent `_layout.tsx` (title registration in _layout.tsx), body is a FlatList with a
  * skeleton loading state, an error state with retry, and an empty state.
  * Pull-to-refresh is kept for the cellular-edge case where a WS reconnect
  * missed events.
  *
  * Row: avatar (photo or initial) + name, with the workspace role as the
  * secondary line — mirrors the desktop member list, which badges each
- * member's role. List-only scope: rows do not navigate anywhere, since
- * no member detail route exists on mobile yet.
+ * member's role. Rows are pressable and navigate to the member detail
+ * route (`more/members/[id]`), which reuses this list's records.
  *
  * Sort: client-side by display name ascending, so the list reads like a
  * directory instead of server insertion order.
@@ -19,11 +18,13 @@
 import { useMemo } from "react";
 import {
   FlatList,
+  Pressable,
   RefreshControl,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
+import { router } from "expo-router";
 import type { MemberWithUser } from "@multica/core/types";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import { useT } from "@/lib/i18n";
 
 export default function MembersPage() {
   const wsId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const wsSlug = useWorkspaceStore((s) => s.currentWorkspaceSlug);
   const { t } = useT("more_members");
 
   const { data, isLoading, error, refetch, isRefetching } = useQuery(
@@ -80,7 +82,14 @@ export default function MembersPage() {
           ItemSeparatorComponent={() => (
             <View className="h-px bg-border ml-4" />
           )}
-          renderItem={({ item }) => <MemberRow member={item} />}
+          renderItem={({ item }) => (
+            <MemberRow
+              member={item}
+              onPress={() => {
+                if (wsSlug) router.push(`/${wsSlug}/more/members/${item.id}`);
+              }}
+            />
+          )}
           refreshControl={
             <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
           }
@@ -97,11 +106,21 @@ function displayName(member: MemberWithUser): string {
   return member.name || member.email;
 }
 
-function MemberRow({ member }: { member: MemberWithUser }) {
+function MemberRow({
+  member,
+  onPress,
+}: {
+  member: MemberWithUser;
+  onPress: () => void;
+}) {
   const { t } = useT("more_members");
   const name = displayName(member);
   return (
-    <View className="flex-row items-center gap-3 px-4 py-3">
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
+    >
       <Avatar className="size-10" alt={name}>
         {member.avatar_url ? (
           <AvatarImage source={{ uri: member.avatar_url }} />
@@ -123,7 +142,7 @@ function MemberRow({ member }: { member: MemberWithUser }) {
           {t(`role.${member.role}`)}
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

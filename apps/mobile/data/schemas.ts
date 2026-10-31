@@ -681,6 +681,31 @@ export const AgentSchema: z.ZodType<Agent> = z.object({
 export const AgentListSchema = z.array(AgentSchema).default([]);
 export const EMPTY_AGENT_LIST: Agent[] = [];
 
+export const EMPTY_AGENT: Agent = {
+  id: "",
+  workspace_id: "",
+  runtime_id: "",
+  name: "",
+  description: "",
+  instructions: "",
+  avatar_url: null,
+  runtime_mode: "local",
+  runtime_config: {},
+  custom_args: [],
+  visibility: "workspace",
+  permission_mode: "private",
+  invocation_targets: [],
+  status: "idle",
+  max_concurrent_tasks: 1,
+  model: "",
+  owner_id: null,
+  skills: [],
+  created_at: "",
+  updated_at: "",
+  archived_at: null,
+  archived_by: null,
+};
+
 // Runtime device — the daemon (local or cloud) an agent binds to. Mobile reads
 // it for the presence dot: `status` + `last_seen_at` drive the three-state
 // availability derivation in @multica/core/agents/derive-presence. All other
@@ -736,6 +761,23 @@ export const SquadSchema: z.ZodType<Squad> = z.object({
 
 export const SquadListSchema = z.array(SquadSchema).default([]);
 export const EMPTY_SQUAD_LIST: Squad[] = [];
+
+export const EMPTY_SQUAD: Squad = {
+  id: "",
+  workspace_id: "",
+  name: "",
+  description: "",
+  instructions: "",
+  avatar_url: null,
+  leader_id: "",
+  creator_id: "",
+  created_at: "",
+  updated_at: "",
+  archived_at: null,
+  archived_by: null,
+  member_count: 0,
+  member_preview: [],
+};
 
 // Single-issue fallback used by getIssue. Mobile reuses IssueSchema from core
 // for parsing; this sentinel lets parseWithFallback yield a structurally-

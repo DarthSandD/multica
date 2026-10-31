@@ -6,10 +6,10 @@
  * Rendering an in-body title row on top of the native bar would stack two
  * "Runtimes" labels vertically.
  *
- * List-only scope: rows are not pressable — there is no runtime detail
- * route on mobile yet. The More-menu entry and the Stack.Screen title are
- * added in the coordinator's merge pass (layout + dropdown are outside
- * this change's scope).
+ * Rows are pressable: tapping one navigates to the runtime detail route
+ * (`more/runtimes/[id]`), which is derived from the already-fetched list
+ * record — there is no GET /api/runtimes/{id} route. The Stack.Screen
+ * title for the detail route is registered in _layout.tsx.
  *
  * Row content mirrors the desktop runtime list
  * (`packages/views/runtimes/components/runtime-list.tsx`): display name
@@ -23,9 +23,10 @@
  * recency feed, so alphabetical order is the predictable default.
  */
 import { useMemo } from "react";
-import { FlatList, RefreshControl, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
+import { router } from "expo-router";
 import type { RuntimeDevice } from "@multica/core/types";
 import { deriveAgentAvailability } from "@multica/core/agents";
 import { runtimeDisplayName } from "@multica/core/runtimes";
@@ -39,6 +40,7 @@ import { useT, useTimeAgo } from "@/lib/i18n";
 
 export default function RuntimesPage() {
   const wsId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const wsSlug = useWorkspaceStore((s) => s.currentWorkspaceSlug);
   const { t } = useT("more_runtimes");
 
   const { data, isLoading, error, refetch, isRefetching } = useQuery(
@@ -80,7 +82,14 @@ export default function RuntimesPage() {
           ItemSeparatorComponent={() => (
             <View className="h-px bg-border ml-4" />
           )}
-          renderItem={({ item }) => <RuntimeRow runtime={item} />}
+          renderItem={({ item }) => (
+            <RuntimeRow
+              runtime={item}
+              onPress={() => {
+                if (wsSlug) router.push(`/${wsSlug}/more/runtimes/${item.id}`);
+              }}
+            />
+          )}
           refreshControl={
             <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
           }
@@ -91,7 +100,13 @@ export default function RuntimesPage() {
   );
 }
 
-function RuntimeRow({ runtime }: { runtime: RuntimeDevice }) {
+function RuntimeRow({
+  runtime,
+  onPress,
+}: {
+  runtime: RuntimeDevice;
+  onPress: () => void;
+}) {
   const { t } = useT("more_runtimes");
   const timeAgo = useTimeAgo();
 
@@ -108,20 +123,22 @@ function RuntimeRow({ runtime }: { runtime: RuntimeDevice }) {
       : `${statusLabel} · ${lastSeen}`;
 
   return (
-    <View className="flex-row items-center gap-3 px-4 py-3">
-      <PresenceDot availability={availability} size={10} />
-      <View className="flex-1 gap-1 min-w-0">
-        <Text
-          className="text-base text-foreground font-medium"
-          numberOfLines={1}
-        >
-          {runtimeDisplayName(runtime)}
-        </Text>
-        <Text className="text-sm text-muted-foreground" numberOfLines={1}>
-          {secondary}
-        </Text>
+    <Pressable onPress={onPress} className="active:bg-secondary">
+      <View className="flex-row items-center gap-3 px-4 py-3">
+        <PresenceDot availability={availability} size={10} />
+        <View className="flex-1 gap-1 min-w-0">
+          <Text
+            className="text-base text-foreground font-medium"
+            numberOfLines={1}
+          >
+            {runtimeDisplayName(runtime)}
+          </Text>
+          <Text className="text-sm text-muted-foreground" numberOfLines={1}>
+            {secondary}
+          </Text>
+        </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

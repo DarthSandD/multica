@@ -36,6 +36,7 @@ import type {
   ListLabelsResponse,
   ListProjectResourcesResponse,
   ListProjectsResponse,
+  MemberRole,
   MemberWithUser,
   PinnedItem,
   PinnedItemType,
@@ -48,6 +49,8 @@ import type {
   SearchProjectsResponse,
   ListIssueStatusesResponse,
   SendChatMessageResponse,
+  Skill,
+  SkillSummary,
   Squad,
   NotificationPreferenceResponse,
   NotificationPreferences,
@@ -56,8 +59,10 @@ import type {
   UpdateIssueRequest,
   UpdateMeRequest,
   UpdateProjectRequest,
+  UpdateSquadRequest,
   User,
   Workspace,
+  WorkspaceRepo,
   WorkspaceSubscriptionSummary,
 } from "@multica/core/types";
 import {
@@ -73,6 +78,10 @@ import {
   ListIssueStatusesResponseSchema,
   TimelineEntriesSchema,
   WorkspaceSubscriptionSummarySchema,
+  EMPTY_SKILL,
+  EMPTY_SKILL_SUMMARY_LIST,
+  SkillSchema,
+  SkillSummaryListSchema,
 } from "@multica/core/api/schemas";
 import type {
   AppConfigResponse,
@@ -81,6 +90,7 @@ import type {
 import {
   ActiveTasksResponseSchema,
   AgentListSchema,
+  AgentSchema,
   AgentTaskListSchema,
   AttachmentListSchema,
   AttachmentSchema,
@@ -90,6 +100,7 @@ import {
   ChatSessionListSchema,
   ChatSessionSchema,
   EMPTY_ACTIVE_TASKS_RESPONSE,
+  EMPTY_AGENT,
   EMPTY_AGENT_LIST,
   EMPTY_AGENT_TASK_LIST,
   EMPTY_ATTACHMENT_LIST,
@@ -110,6 +121,7 @@ import {
   EMPTY_RUNTIME_LIST,
   EMPTY_SEARCH_ISSUES_RESPONSE,
   EMPTY_SEARCH_PROJECTS_RESPONSE,
+  EMPTY_SQUAD,
   EMPTY_SQUAD_LIST,
   EMPTY_USER,
   EMPTY_WORKSPACE_LIST,
@@ -128,6 +140,7 @@ import {
   SearchProjectsResponseSchema,
   SendChatMessageResponseSchema,
   SquadListSchema,
+  SquadSchema,
   TaskMessageListSchema,
   EMPTY_TASK_MESSAGE_LIST,
   UserSchema,
@@ -499,6 +512,24 @@ class ApiClient {
     });
   }
 
+  async updateWorkspace(
+    id: string,
+    patch: {
+      name?: string;
+      description?: string;
+      context?: string;
+      settings?: Record<string, unknown>;
+      repos?: WorkspaceRepo[];
+      issue_prefix?: string;
+      avatar_url?: string;
+    },
+  ): Promise<Workspace> {
+    return this.fetch<Workspace>(`/api/workspaces/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+  }
+
   // --- Inbox ---
   async listInbox(opts?: { signal?: AbortSignal }): Promise<InboxItem[]> {
     const raw = await this.fetch<unknown>("/api/inbox", {
@@ -579,12 +610,60 @@ class ApiClient {
     });
   }
 
+  async updateMemberRole(
+    workspaceId: string,
+    memberId: string,
+    role: MemberRole,
+  ): Promise<MemberWithUser> {
+    return this.fetch<MemberWithUser>(
+      `/api/workspaces/${workspaceId}/members/${memberId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+      },
+    );
+  }
+
+  async removeMember(
+    workspaceId: string,
+    memberId: string,
+  ): Promise<void> {
+    await this.fetch<void>(
+      `/api/workspaces/${workspaceId}/members/${memberId}`,
+      { method: "DELETE" },
+    );
+  }
+
   async listAgents(opts?: { signal?: AbortSignal }): Promise<Agent[]> {
     const raw = await this.fetch<unknown>("/api/agents", {
       signal: opts?.signal,
     });
     return parseWithFallback(raw, AgentListSchema, EMPTY_AGENT_LIST, {
       endpoint: "listAgents",
+    });
+  }
+
+  async getAgent(
+    id: string,
+    opts?: { signal?: AbortSignal },
+  ): Promise<Agent> {
+    const raw = await this.fetch<unknown>(`/api/agents/${id}`, {
+      signal: opts?.signal,
+    });
+    return parseWithFallback(raw, AgentSchema, EMPTY_AGENT, {
+      endpoint: "getAgent",
+    });
+  }
+
+  async archiveAgent(id: string): Promise<Agent> {
+    return this.fetch<Agent>(`/api/agents/${id}/archive`, {
+      method: "POST",
+    });
+  }
+
+  async restoreAgent(id: string): Promise<Agent> {
+    return this.fetch<Agent>(`/api/agents/${id}/restore`, {
+      method: "POST",
     });
   }
 
@@ -597,6 +676,22 @@ class ApiClient {
     });
     return parseWithFallback(raw, RuntimeListSchema, EMPTY_RUNTIME_LIST, {
       endpoint: "listRuntimes",
+    });
+  }
+
+  async renameRuntime(
+    runtimeId: string,
+    customName: string,
+  ): Promise<RuntimeDevice> {
+    return this.fetch<RuntimeDevice>(`/api/runtimes/${runtimeId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ custom_name: customName }),
+    });
+  }
+
+  async deleteRuntime(runtimeId: string): Promise<void> {
+    await this.fetch<void>(`/api/runtimes/${runtimeId}`, {
+      method: "DELETE",
     });
   }
 
@@ -622,6 +717,28 @@ class ApiClient {
     });
     return parseWithFallback(raw, SquadListSchema, EMPTY_SQUAD_LIST, {
       endpoint: "listSquads",
+    });
+  }
+
+  async getSquad(
+    id: string,
+    opts?: { signal?: AbortSignal },
+  ): Promise<Squad> {
+    const raw = await this.fetch<unknown>(`/api/squads/${id}`, {
+      signal: opts?.signal,
+    });
+    return parseWithFallback(raw, SquadSchema, EMPTY_SQUAD, {
+      endpoint: "GET /api/squads/:id",
+    });
+  }
+
+  async updateSquad(
+    id: string,
+    patch: UpdateSquadRequest,
+  ): Promise<Squad> {
+    return this.fetch<Squad>(`/api/squads/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
     });
   }
 
@@ -1031,6 +1148,27 @@ class ApiClient {
     return parseWithFallback(raw, ProjectSchema, EMPTY_PROJECT, {
       endpoint: "GET /api/projects/:id",
     });
+  }
+
+  async listSkills(opts?: { signal?: AbortSignal }): Promise<SkillSummary[]> {
+    return this.fetchValidated(
+      "/api/skills",
+      SkillSummaryListSchema,
+      EMPTY_SKILL_SUMMARY_LIST,
+      { ...opts, endpoint: "listSkills" },
+    );
+  }
+
+  async getSkill(
+    id: string,
+    opts?: { signal?: AbortSignal },
+  ): Promise<Skill> {
+    return this.fetchValidated(
+      `/api/skills/${id}`,
+      SkillSchema,
+      EMPTY_SKILL,
+      { ...opts, endpoint: "getSkill" },
+    );
   }
 
   // Write endpoints — no parseWithFallback (mirrors updateIssue:430). A

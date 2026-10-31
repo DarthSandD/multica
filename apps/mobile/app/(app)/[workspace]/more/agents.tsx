@@ -15,16 +15,17 @@
  * "offline": they cannot take work, which is a lifecycle state, not a
  * transient runtime state. A missing `runtime_availability` reads as
  * offline — the agent has no reachable runtime to report.
- * List-only scope: rows do not navigate anywhere, since no agent detail
- * route exists on mobile yet.
+ * Rows are pressable and navigate to the agent detail route
+ * (`more/agents/[id]`, General tab only in v1).
  *
  * Sort: active agents first, then archived, each group by name ascending,
  * so the list reads like a directory instead of server insertion order.
  */
 import { useMemo } from "react";
-import { FlatList, RefreshControl, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
+import { router } from "expo-router";
 import type { Agent } from "@multica/core/types";
 import type { AgentAvailability } from "@multica/core/agents";
 import { Text } from "@/components/ui/text";
@@ -47,6 +48,7 @@ function availabilityOf(agent: Agent): AgentAvailability {
 
 export default function AgentsPage() {
   const wsId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const wsSlug = useWorkspaceStore((s) => s.currentWorkspaceSlug);
   const { t } = useT("more_agents");
 
   const { data, isLoading, error, refetch, isRefetching } = useQuery(
@@ -91,7 +93,14 @@ export default function AgentsPage() {
           ItemSeparatorComponent={() => (
             <View className="h-px bg-border ml-4" />
           )}
-          renderItem={({ item }) => <AgentRow agent={item} />}
+          renderItem={({ item }) => (
+            <AgentRow
+              agent={item}
+              onPress={() => {
+                if (wsSlug) router.push(`/${wsSlug}/more/agents/${item.id}`);
+              }}
+            />
+          )}
           refreshControl={
             <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
           }
@@ -102,11 +111,21 @@ export default function AgentsPage() {
   );
 }
 
-function AgentRow({ agent }: { agent: Agent }) {
+function AgentRow({
+  agent,
+  onPress,
+}: {
+  agent: Agent;
+  onPress: () => void;
+}) {
   const { t } = useT("more_agents");
   const availability = availabilityOf(agent);
   return (
-    <View className="flex-row items-center gap-3 px-4 py-3">
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
+    >
       <View className="relative">
         <Avatar className="size-10" alt={agent.name}>
           {agent.avatar_url ? (
@@ -133,7 +152,7 @@ function AgentRow({ agent }: { agent: Agent }) {
           {t(`availability.${availability}`)}
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

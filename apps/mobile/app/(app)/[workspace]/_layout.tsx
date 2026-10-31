@@ -315,6 +315,13 @@ export default function WorkspaceLayout() {
             }}
         />
         <Stack.Screen
+          name="more/agents/[id]"
+          options={{
+            title: t("navigation:routes.agents"),
+            headerBackTitle: t("back"),
+          }}
+        />
+        <Stack.Screen
           name="more/members"
             options={{
               title: t("navigation:routes.members"),
@@ -322,7 +329,20 @@ export default function WorkspaceLayout() {
             }}
         />
         <Stack.Screen
+          name="more/members/[id]"
+          options={{
+            headerBackTitle: t("back"),
+          }}
+        />
+        <Stack.Screen
           name="more/squads"
+            options={{
+              title: t("navigation:routes.squads"),
+              headerBackTitle: t("back"),
+            }}
+        />
+        <Stack.Screen
+          name="more/squads/[id]"
             options={{
               title: t("navigation:routes.squads"),
               headerBackTitle: t("back"),
@@ -336,11 +356,25 @@ export default function WorkspaceLayout() {
             }}
         />
         <Stack.Screen
+          name="more/runtimes/[id]"
+          options={{
+            title: t("navigation:routes.runtimes"),
+            headerBackTitle: t("back"),
+          }}
+        />
+        <Stack.Screen
           name="more/skills"
             options={{
               title: t("navigation:routes.skills"),
               headerBackTitle: t("back"),
             }}
+        />
+        <Stack.Screen
+          name="more/skills/[id]"
+          options={{
+            title: t("navigation:routes.skills"),
+            headerBackTitle: t("back"),
+          }}
         />
         <Stack.Screen
           name="more/autopilots"
