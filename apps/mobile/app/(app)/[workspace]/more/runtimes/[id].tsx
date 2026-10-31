@@ -50,6 +50,7 @@ import { Button } from "@/components/ui/button";
 import { PresenceDot } from "@/components/ui/presence-dot";
 import { MOBILE_PLACEHOLDER_COLOR } from "@/components/ui/input-tokens";
 import { runtimeListOptions } from "@/data/queries/runtimes";
+import { usePresenceTick } from "@/lib/use-agent-presence";
 import {
   useDeleteRuntime,
   useRenameRuntime,
@@ -66,6 +67,11 @@ export default function RuntimeDetailPage() {
   const list = useQuery(runtimeListOptions(wsId));
   const runtime = list.data?.find((item) => item.id === id) ?? null;
 
+  // AppState-gated 30s tick: availability derives from this clock value
+  // instead of a Date.now() call during render, which the
+  // react-hooks/purity lint rule forbids.
+  const now = usePresenceTick();
+
   const rename = useRenameRuntime(id ?? "");
   const deleteRuntime = useDeleteRuntime(id ?? "");
 
@@ -76,7 +82,7 @@ export default function RuntimeDetailPage() {
 
   const displayName = runtime ? runtimeDisplayName(runtime) : "Runtime";
   const availability = runtime
-    ? deriveAgentAvailability(runtime, Date.now())
+    ? deriveAgentAvailability(runtime, now)
     : "offline";
   const statusLabel = runtime ? t(`status.${runtime.status}`) : "";
   const presenceLabel = runtime ? t(`status.${availability}`) : "";

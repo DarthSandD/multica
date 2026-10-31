@@ -40,7 +40,13 @@ const PRESENCE_TICK_MS = 30_000;
 // inactive: timer torn down. Return to foreground: force one immediate
 // recompute (not waiting on the next tick) so the user never sees a stale
 // dot the moment they reopen the app.
-function usePresenceTick(): number {
+//
+// Exported for reuse by screens that derive availability from a wall-clock
+// baseline (e.g. the Runtimes list/detail screens): calling Date.now()
+// directly during render trips the react-hooks/purity lint rule, while
+// this hook keeps the impure clock read inside state/effect, which is
+// where the rule allows it.
+export function usePresenceTick(): number {
   const [now, setNow] = useState(Date.now);
 
   useEffect(() => {

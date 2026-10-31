@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { PresenceDot } from "@/components/ui/presence-dot";
 import { Skeleton } from "@/components/ui/skeleton";
 import { runtimeListOptions } from "@/data/queries/runtimes";
+import { usePresenceTick } from "@/lib/use-agent-presence";
 import { useWorkspaceStore } from "@/data/workspace-store";
 import { useT, useTimeAgo } from "@/lib/i18n";
 
@@ -46,6 +47,11 @@ export default function RuntimesPage() {
   const { data, isLoading, error, refetch, isRefetching } = useQuery(
     runtimeListOptions(wsId),
   );
+
+  // One AppState-gated 30s tick for the whole list, passed down to rows:
+  // availability is derived from this clock value instead of a Date.now()
+  // call during render, which the react-hooks/purity lint rule forbids.
+  const now = usePresenceTick();
 
   const sorted = useMemo(() => {
     if (!data) return [];
@@ -85,6 +91,7 @@ export default function RuntimesPage() {
           renderItem={({ item }) => (
             <RuntimeRow
               runtime={item}
+              now={now}
               onPress={() => {
                 if (wsSlug) router.push(`/${wsSlug}/more/runtimes/${item.id}`);
               }}
@@ -102,17 +109,20 @@ export default function RuntimesPage() {
 
 function RuntimeRow({
   runtime,
+  now,
   onPress,
 }: {
   runtime: RuntimeDevice;
+  now: number;
   onPress: () => void;
 }) {
   const { t } = useT("more_runtimes");
   const timeAgo = useTimeAgo();
 
-  // Availability is derived per render, not ticked: a refetch (or
-  // pull-to-refresh) recomputes it, which is enough for a browse list.
-  const availability = deriveAgentAvailability(runtime, Date.now());
+  // Availability is derived from the parent's AppState-gated 30s tick:
+  // a tick or a refetch re-renders the row with a fresh clock value, which
+  // is enough for a browse list, and no impure clock call runs in render.
+  const availability = deriveAgentAvailability(runtime, now);
   const statusLabel = t(`status.${availability}`);
   const lastSeen = runtime.last_seen_at
     ? timeAgo(runtime.last_seen_at)
